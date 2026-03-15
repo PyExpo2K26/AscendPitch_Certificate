@@ -3,11 +3,11 @@ import logging
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for, send_file, Response
 from werkzeug.utils import secure_filename
 
 from email_sender import send_certificate_email
-from generator import generate_certificate, ensure_default_template, sanitize_name_for_file
+from generator import generate_certificate, sanitize_name_for_file
 from github_upload import build_raw_github_url, upload_certificate_to_github
 
 # Configure logging
@@ -43,6 +43,34 @@ def form_page():
     return render_template("form.html", event_name=EVENT_NAME, event_date=EVENT_DATE)
 
 
+@app.route("/certificate/<cert_id>")
+def view_certificate(cert_id):
+    """Serve certificate PDF inline (display in browser, not download)."""
+    certificate_path = os.path.join(CERTIFICATES_DIR, f"{cert_id}.pdf")
+    
+    logger.info(f"Attempting to serve certificate: {certificate_path}")
+    
+    if not os.path.exists(certificate_path):
+        logger.warning(f"Certificate not found: {certificate_path}")
+        return "Certificate not found", 404
+    
+    logger.info(f"Serving certificate: {certificate_path}")
+    
+    try:
+        with open(certificate_path, 'rb') as f:
+            pdf_data = f.read()
+        
+        response = Response(pdf_data, mimetype='application/pdf')
+        response.headers['Content-Disposition'] = 'inline; filename=certificate.pdf'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    except Exception as e:
+        logger.error(f"Error serving certificate: {e}")
+        return f"Error serving certificate: {e}", 500
+
+
 @app.route("/generate", methods=["POST"])
 def generate_route():
     participant_name = request.form.get("name", "").strip()
@@ -72,11 +100,13 @@ def generate_route():
         return redirect(url_for("form_page"))
 
     clean_name = sanitize_name_for_file(participant_name)
-    certificate_filename = f"{clean_name}.png"
+    certificate_filename = f"{clean_name}.pdf"
     certificate_local_path = os.path.join(CERTIFICATES_DIR, certificate_filename)
 
     github_file_path = f"{github_folder.strip('/')}/{certificate_filename}".lstrip("/")
-    github_raw_url = build_raw_github_url(github_repo, github_branch, github_file_path)
+    
+    # Create verification link using raw GitHub URL (opens in browser, not download)
+    verification_link = f"https://raw.githubusercontent.com/{github_repo}/{github_branch}/{github_file_path}"
 
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     os.makedirs(CERTIFICATES_DIR, exist_ok=True)
@@ -94,7 +124,7 @@ def generate_route():
             participant_name=participant_name,
             college_name=college_name,
             participant_photo_path=photo_path,
-            qr_data=github_raw_url,
+            qr_data=verification_link,
             font_path=FONT_PATH,
         )
         logger.info(f"Certificate generated at: {certificate_local_path}")
@@ -159,5 +189,5 @@ if __name__ == "__main__":
     os.makedirs(CERTIFICATES_DIR, exist_ok=True)
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     os.makedirs(STATIC_DIR, exist_ok=True)
-    ensure_default_template(TEMPLATE_IMAGE)
+    # ensure_default_template(TEMPLATE_IMAGE)
     app.run(debug=True)

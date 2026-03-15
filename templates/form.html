@@ -173,6 +173,11 @@
             font-size: 14px;
             margin: 4px 0 0 0;
         }
+
+        .file-picker-btn {
+            width: 100%;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -221,7 +226,11 @@
 
                 <!-- Upload Photo Section -->
                 <div id="uploadSection" class="full">
-                    <input id="photo" name="photo" type="file" accept="image/*" />
+                    <input id="photo" name="photo" type="file" accept="image/*" hidden />
+                    <button type="button" id="filePickerBtn" class="file-picker-btn">
+                        🗂️ Choose Photo
+                    </button>
+                    <p id="fileName" class="info-msg"></p>
                     <p class="info-msg">Supported formats: PNG, JPG, JPEG, WebP</p>
                 </div>
 
@@ -265,6 +274,8 @@
         const canvas = document.getElementById('canvas');
         const photoPreview = document.getElementById('photoPreview');
         const photoInput = document.getElementById('photo');
+        const filePickerBtn = document.getElementById('filePickerBtn');
+        const fileNameDisplay = document.getElementById('fileName');
         const captureBtn = document.getElementById('captureBtn');
         const retakeBtn = document.getElementById('retakeBtn');
         const stopCameraBtn = document.getElementById('stopCameraBtn');
@@ -273,6 +284,21 @@
         let stream = null;
         let photoCaptured = false;
         let usingWebcam = false;
+
+        // File picker button handler
+        filePickerBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            photoInput.click();
+        });
+
+        // Update file name display when file is selected
+        photoInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${e.target.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = '';
+            }
+        });
 
         // Toggle between upload and capture modes
         uploadPhotoBtn.addEventListener('click', (e) => {
@@ -411,47 +437,5 @@
             }
         });
     </script>
-</body>
-</html>
-        <div class="card">
-            <h1>Event Certificate Generator</h1>
-            <p class="meta"><strong>Event:</strong> {{ event_name }}</p>
-            <p class="meta"><strong>Date:</strong> {{ event_date }}</p>
-
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <form action="{{ url_for('generate_route') }}" method="POST" enctype="multipart/form-data">
-                <div>
-                    <label for="name">Participant Name</label>
-                    <input id="name" name="name" type="text" required />
-                </div>
-
-                <div>
-                    <label for="college">College Name</label>
-                    <input id="college" name="college" type="text" required />
-                </div>
-
-                <div>
-                    <label for="email">Email Address</label>
-                    <input id="email" name="email" type="email" required />
-                </div>
-
-                <div class="full">
-                    <label for="photo">Participant Photo</label>
-                    <input id="photo" name="photo" type="file" accept="image/*" required />
-                </div>
-
-                <div class="full">
-                    <button type="submit">Generate Certificate</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </body>
 </html>
