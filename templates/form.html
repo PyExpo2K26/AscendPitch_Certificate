@@ -115,6 +115,10 @@
             color: var(--muted);
         }
 
+        input[type="file"].hidden-input {
+            display: none;
+        }
+
         button {
             width: 100%;
             border: none;
@@ -156,72 +160,81 @@
             cursor: not-allowed;
         }
 
-        .button-group {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
+        .photo-tools {
+            display: grid;
+            gap: 12px;
         }
 
-        .button-group button {
-            flex: 1;
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .picker-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(90deg, #0b3b6f, #2563eb);
+        }
+
+        .info-text {
             margin: 0;
+            color: var(--muted);
+            font-size: 0.92rem;
         }
 
-        .webcam-section {
+        .preview-box {
             display: none;
-            border: 2px solid #cbd5e1;
-            border-radius: 10px;
-            padding: 16px;
-            margin-bottom: 12px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
             background: #f8fafc;
         }
 
-        .webcam-section.active {
+        .preview-box.active {
             display: block;
         }
 
-        #video {
+        .preview-box img {
+            display: block;
+            max-width: 220px;
             width: 100%;
-            max-width: 400px;
-            border-radius: 8px;
-            background: #000;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            margin-top: 10px;
+        }
+
+        .webcam-panel {
+            display: none;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
+            background: #f8fafc;
+        }
+
+        .webcam-panel.active {
+            display: block;
+        }
+
+        .webcam-panel video {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            border-radius: 10px;
+            background: #020617;
             margin-bottom: 12px;
         }
 
-        #canvas {
-            display: none;
-        }
-
-        .photo-preview {
-            text-align: center;
-            margin: 12px 0;
-        }
-
-        .photo-preview img {
-            max-width: 200px;
-            border-radius: 8px;
-            border: 2px solid #cbd5e1;
-        }
-
-        .webcam-controls {
+        .webcam-actions {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
         }
 
-        .hidden {
-            display: none;
-        }
-
-        .info-msg {
-            color: var(--muted);
-            font-size: 14px;
-            margin: 4px 0 0 0;
-        }
-
-        .file-picker-btn {
-            width: 100%;
-            margin-bottom: 8px;
+        .muted-button {
+            background: linear-gradient(90deg, #475569, #64748b);
         }
     </style>
 </head>
@@ -256,50 +269,28 @@
                     <input id="email" name="email" type="email" required />
                 </div>
 
-                <!-- Photo Input Section -->
                 <div class="full">
-                    <label>Participant Photo</label>
-                    <div class="button-group">
-                        <button type="button" id="uploadPhotoBtn" class="active">
-                            📤 Upload Photo
-                        </button>
-                        <button type="button" id="capturePhotoBtn">
-                            📷 Capture from Webcam
-                        </button>
+                    <label for="photo">Participant Photo</label>
+                    <div class="photo-tools">
+                        <input id="photo" class="hidden-input" name="photo" type="file" accept="image/png,image/jpeg,image/webp" required />
+                        <div class="button-row">
+                            <button type="button" id="choosePhotoBtn" class="picker-button">Choose File</button>
+                            <button type="button" id="openCameraBtn">Use Webcam</button>
+                        </div>
+                        <p id="photoStatus" class="info-text">No photo selected. Supported formats: PNG, JPG, JPEG, WebP.</p>
+                        <div id="photoPreviewBox" class="preview-box">
+                            <strong>Selected Photo</strong>
+                            <img id="photoPreview" alt="Selected participant photo" />
+                        </div>
+                        <div id="webcamPanel" class="webcam-panel">
+                            <video id="webcamVideo" autoplay playsinline></video>
+                            <canvas id="webcamCanvas" hidden></canvas>
+                            <div class="webcam-actions">
+                                <button type="button" id="capturePhotoBtn">Capture</button>
+                                <button type="button" id="closeCameraBtn" class="muted-button">Close Camera</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Upload Photo Section -->
-                <div id="uploadSection" class="full">
-                    <input id="photo" name="photo" type="file" accept="image/*" hidden />
-                    <button type="button" id="filePickerBtn" class="file-picker-btn">
-                        🗂️ Choose Photo
-                    </button>
-                    <p id="fileName" class="info-msg"></p>
-                    <p class="info-msg">Supported formats: PNG, JPG, JPEG, WebP</p>
-                </div>
-
-                <!-- Webcam Capture Section -->
-                <div id="webcamSection" class="webcam-section full">
-                    <video id="video" autoplay playsinline></video>
-                    <canvas id="canvas"></canvas>
-                    
-                    <div class="photo-preview">
-                        <img id="photoPreview" alt="Captured photo" class="hidden" />
-                    </div>
-
-                    <div class="webcam-controls">
-                        <button type="button" id="captureBtn" class="hidden">
-                            📸 Capture Photo
-                        </button>
-                        <button type="button" id="retakeBtn" class="hidden">
-                            🔄 Retake
-                        </button>
-                        <button type="button" id="stopCameraBtn">
-                            ❌ Stop Camera
-                        </button>
-                    </div>
-                    <p class="info-msg">Please ensure good lighting and face the camera</p>
                 </div>
 
                 <div class="full">
@@ -308,179 +299,110 @@
             </form>
         </div>
     </div>
-
     <script>
-        // Webcam capture functionality
-        const uploadPhotoBtn = document.getElementById('uploadPhotoBtn');
-        const capturePhotoBtn = document.getElementById('capturePhotoBtn');
-        const uploadSection = document.getElementById('uploadSection');
-        const webcamSection = document.getElementById('webcamSection');
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const photoPreview = document.getElementById('photoPreview');
         const photoInput = document.getElementById('photo');
-        const filePickerBtn = document.getElementById('filePickerBtn');
-        const fileNameDisplay = document.getElementById('fileName');
-        const captureBtn = document.getElementById('captureBtn');
-        const retakeBtn = document.getElementById('retakeBtn');
-        const stopCameraBtn = document.getElementById('stopCameraBtn');
-        const generateBtn = document.getElementById('generateBtn');
+        const choosePhotoBtn = document.getElementById('choosePhotoBtn');
+        const openCameraBtn = document.getElementById('openCameraBtn');
+        const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+        const closeCameraBtn = document.getElementById('closeCameraBtn');
+        const photoStatus = document.getElementById('photoStatus');
+        const photoPreviewBox = document.getElementById('photoPreviewBox');
+        const photoPreview = document.getElementById('photoPreview');
+        const webcamPanel = document.getElementById('webcamPanel');
+        const webcamVideo = document.getElementById('webcamVideo');
+        const webcamCanvas = document.getElementById('webcamCanvas');
 
-        let stream = null;
-        let photoCaptured = false;
-        let usingWebcam = false;
+        let webcamStream = null;
 
-        // File picker button handler
-        filePickerBtn.addEventListener('click', (e) => {
-            e.preventDefault();
+        function stopWebcam() {
+            if (!webcamStream) {
+                return;
+            }
+
+            webcamStream.getTracks().forEach((track) => track.stop());
+            webcamStream = null;
+            webcamVideo.srcObject = null;
+            webcamPanel.classList.remove('active');
+        }
+
+        function showPreview(src, label) {
+            photoPreview.src = src;
+            photoPreviewBox.classList.add('active');
+            photoStatus.textContent = label;
+        }
+
+        choosePhotoBtn.addEventListener('click', () => {
             photoInput.click();
         });
 
-        // Update file name display when file is selected
-        photoInput.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files.length > 0) {
-                fileNameDisplay.textContent = `Selected: ${e.target.files[0].name}`;
-            } else {
-                fileNameDisplay.textContent = '';
+        photoInput.addEventListener('change', () => {
+            const [file] = photoInput.files;
+            if (!file) {
+                photoPreviewBox.classList.remove('active');
+                photoStatus.textContent = 'No photo selected. Supported formats: PNG, JPG, JPEG, WebP.';
+                return;
             }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                showPreview(reader.result, `Selected file: ${file.name}`);
+            };
+            reader.readAsDataURL(file);
+            stopWebcam();
         });
 
-        // Toggle between upload and capture modes
-        uploadPhotoBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            uploadPhotoBtn.classList.add('active');
-            capturePhotoBtn.classList.remove('active');
-            uploadSection.style.display = 'block';
-            webcamSection.classList.remove('active');
-            usingWebcam = false;
-            stopCamera();
-            photoInput.setAttribute('required', '');
-        });
-
-        capturePhotoBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            capturePhotoBtn.classList.add('active');
-            uploadPhotoBtn.classList.remove('active');
-            uploadSection.style.display = 'none';
-            webcamSection.classList.add('active');
-            usingWebcam = true;
-            photoInput.removeAttribute('required');
-            startCamera();
-        });
-
-        // Start camera
-        async function startCamera() {
+        openCameraBtn.addEventListener('click', async () => {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: 'user',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
                 });
-                video.srcObject = stream;
-                captureBtn.classList.remove('hidden');
-                stopCameraBtn.classList.remove('hidden');
-                photoPreview.classList.add('hidden');
-                retakeBtn.classList.add('hidden');
-                photoCaptured = false;
+                webcamVideo.srcObject = webcamStream;
+                webcamPanel.classList.add('active');
+                photoStatus.textContent = 'Webcam is active. Capture a photo when ready.';
             } catch (error) {
-                console.error('Webcam error:', error);
-                alert('Could not access webcam: ' + error.message + '\n\nPlease use the upload option instead.');
-                uploadPhotoBtn.click();
-            }
-        }
-
-        // Stop camera
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-        }
-
-        // Capture photo from video
-        captureBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            try {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-                
-                // Convert canvas to blob and set as form input
-                canvas.toBlob(blob => {
-                    if (!blob) {
-                        alert('Failed to capture photo. Please try again.');
-                        return;
-                    }
-                    
-                    try {
-                        // Create a File from the blob
-                        const file = new File([blob], 'captured_photo.png', { type: 'image/png' });
-                        
-                        // Use FormData to set the file
-                        const dt = new DataTransfer();
-                        dt.items.add(file);
-                        photoInput.files = dt.files;
-                        
-                        // Show preview
-                        photoPreview.src = canvas.toDataURL();
-                        photoPreview.classList.remove('hidden');
-                        
-                        // Update button visibility
-                        captureBtn.classList.add('hidden');
-                        stopCameraBtn.classList.add('hidden');
-                        retakeBtn.classList.remove('hidden');
-                        photoCaptured = true;
-                    } catch (e) {
-                        console.error('Error setting file:', e);
-                        alert('Error saving captured photo. Please try again.');
-                    }
-                }, 'image/png', 0.95);
-            } catch (error) {
-                console.error('Capture error:', error);
-                alert('Error capturing photo: ' + error.message);
+                photoStatus.textContent = `Could not open webcam: ${error.message}`;
             }
         });
 
-        // Retake photo
-        retakeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            photoCaptured = false;
-            photoPreview.classList.add('hidden');
-            photoInput.value = '';
-            captureBtn.classList.remove('hidden');
-            stopCameraBtn.classList.remove('hidden');
-            retakeBtn.classList.add('hidden');
+        capturePhotoBtn.addEventListener('click', () => {
+            if (!webcamStream) {
+                photoStatus.textContent = 'Open the webcam before capturing a photo.';
+                return;
+            }
+
+            webcamCanvas.width = webcamVideo.videoWidth;
+            webcamCanvas.height = webcamVideo.videoHeight;
+            const context = webcamCanvas.getContext('2d');
+            context.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+
+            webcamCanvas.toBlob((blob) => {
+                if (!blob) {
+                    photoStatus.textContent = 'Failed to capture the webcam photo.';
+                    return;
+                }
+
+                const file = new File([blob], 'webcam-photo.png', { type: 'image/png' });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                photoInput.files = dataTransfer.files;
+
+                showPreview(webcamCanvas.toDataURL('image/png'), 'Captured photo from webcam');
+                stopWebcam();
+            }, 'image/png');
         });
 
-        // Stop camera
-        stopCameraBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            stopCamera();
-            webcamSection.classList.remove('active');
-            uploadSection.style.display = 'block';
-            uploadPhotoBtn.classList.add('active');
-            capturePhotoBtn.classList.remove('active');
-            usingWebcam = false;
-            photoInput.setAttribute('required', '');
+        closeCameraBtn.addEventListener('click', () => {
+            stopWebcam();
+            if (!photoInput.files.length) {
+                photoStatus.textContent = 'No photo selected. Supported formats: PNG, JPG, JPEG, WebP.';
+            }
         });
 
-        // Form submission validation
-        document.querySelector('form').addEventListener('submit', (e) => {
-            if (usingWebcam && !photoCaptured) {
-                e.preventDefault();
-                alert('Please capture a photo before generating certificate');
-                return false;
-            }
-            
-            if (!usingWebcam && !photoInput.files.length) {
-                e.preventDefault();
-                alert('Please select a photo before generating certificate');
-                return false;
-            }
-        });
+        window.addEventListener('beforeunload', stopWebcam);
     </script>
 </body>
 </html>

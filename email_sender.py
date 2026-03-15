@@ -33,7 +33,7 @@ def send_certificate_email(
     message.attach(MIMEText(body, "plain"))
 
     with open(certificate_path, "rb") as file_handle:
-        attachment = MIMEApplication(file_handle.read(), _subtype="png")
+        attachment = MIMEApplication(file_handle.read(), _subtype="pdf")
         attachment.add_header(
             "Content-Disposition",
             "attachment",

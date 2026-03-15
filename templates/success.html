@@ -90,6 +90,14 @@
             opacity: 0.9;
         }
 
+        .btn-link.secondary {
+            background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+        }
+
+        .btn-link.neutral {
+            background: linear-gradient(90deg, #334155, #64748b);
+        }
+
         .github-link {
             display: block;
             margin-top: 6px;
@@ -121,14 +129,28 @@
             <p><strong>Participant:</strong> {{ name }}</p>
             <p><strong>Email:</strong> {{ email }}</p>
 
+            {% if upload_status == 'uploaded' %}
+                <p class="ok"><strong>Certificate:</strong> Uploaded to GitHub successfully.</p>
+            {% elif upload_status == 'failed' %}
+                <p class="warn"><strong>Certificate:</strong> Generated locally. GitHub upload failed.</p>
+            {% else %}
+                <p class="warn"><strong>Certificate:</strong> Generated locally. GitHub upload skipped.</p>
+            {% endif %}
+
             {% if email_status == 'sent' %}
                 <p class="ok"><strong>Email:</strong> Sent successfully.</p>
+            {% elif email_status == 'skipped' %}
+                <p class="warn"><strong>Email:</strong> Automatic sending is unavailable without sender credentials. Use the mail app button below as a no-configuration fallback.</p>
             {% else %}
                 <p class="warn"><strong>Email:</strong> Not sent. Check Gmail SMTP app password settings.</p>
             {% endif %}
 
             <p>
                 <a class="btn-link" href="{{ github_url }}" target="_blank">Open Certificate</a>
+                <a class="btn-link secondary" href="{{ url_for('download_certificate', cert_id=cert_id) }}">Download Certificate</a>
+                {% if mailto_link %}
+                    <a class="btn-link neutral" href="{{ mailto_link }}">Send via Mail App</a>
+                {% endif %}
                 <a class="github-link" href="{{ github_url }}" target="_blank">{{ github_url }}</a>
             </p>
 

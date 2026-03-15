@@ -3,7 +3,6 @@ import qrcode
 import textwrap
 import os
 import re
-import logging
 
 
 def sanitize_name_for_file(name):
@@ -56,18 +55,10 @@ def generate_certificate(template_path, output_path, participant_name, college_n
     name_font = ImageFont.truetype(name_font_path, 110)
     desc_font = ImageFont.truetype(desc_font_path, 42)
 
-    # =============================
-    # PHOTO
-    # =============================
-    
-    photo = Image.open(participant_photo_path).convert("RGB")
-    # Use a fixed square crop so portrait photos don't look tiny after thumbnail scaling.
-    photo = ImageOps.fit(photo, (290, 290), method=Image.Resampling.LANCZOS)
-
-    photo_x = 1580
-    photo_y = 390
-
-    img.paste(photo,(photo_x,photo_y))
+    if participant_photo_path:
+        photo = Image.open(participant_photo_path).convert("RGB")
+        photo = ImageOps.fit(photo, (290, 290), method=Image.Resampling.LANCZOS)
+        img.paste(photo, (1580, 390))
 
     # =============================
     # ANCHOR: HORIZONTAL LINE
@@ -118,12 +109,6 @@ def generate_certificate(template_path, output_path, participant_name, college_n
 
     # =============================
     # VERIFY TEMPLATE SIZE
-    # =============================
-    
-    print(img.size)
-
-    # =============================
-    # SAVE CERTIFICATE AS PDF
     # =============================
     
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
