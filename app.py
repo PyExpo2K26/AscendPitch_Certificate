@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 
 from email_sender import send_certificate_email
 from generator import generate_certificate, sanitize_name_for_file
-from github_upload import build_raw_github_url, upload_certificate_to_github
+from github_upload import upload_certificate_to_github
 
 # Configure logging
 logging.basicConfig(
@@ -92,7 +92,7 @@ def generate_route():
 
     github_repo = os.getenv("GITHUB_REPO")
     github_branch = os.getenv("GITHUB_BRANCH", "main")
-    github_folder = os.getenv("GITHUB_CERT_FOLDER", "")
+    github_folder = os.getenv("GITHUB_CERT_FOLDER", "generated-certificates")
     
     if not github_repo:
         flash("Set GITHUB_REPO in .env before generating certificates.", "error")
@@ -105,8 +105,7 @@ def generate_route():
 
     github_file_path = f"{github_folder.strip('/')}/{certificate_filename}".lstrip("/")
     
-    # Create verification link using raw GitHub URL (opens in browser, not download)
-    verification_link = f"https://raw.githubusercontent.com/{github_repo}/{github_branch}/{github_file_path}"
+    verification_link = f"https://pyexpo2k26.github.io/AscendPitch_Certificate/generated-certificates/{certificate_filename}"
 
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     os.makedirs(CERTIFICATES_DIR, exist_ok=True)
@@ -152,7 +151,7 @@ def generate_route():
             recipient_email=email,
             participant_name=participant_name,
             certificate_path=certificate_local_path,
-            certificate_link=uploaded_url,
+            certificate_link=verification_link,
         )
         logger.info(f"Email sent successfully to: {email}")
     except Exception as e:
@@ -164,7 +163,7 @@ def generate_route():
             "success_page",
             name=participant_name,
             email=email,
-            github_url=uploaded_url,
+            github_url=verification_link,
             email_status=email_status,
         )
     )

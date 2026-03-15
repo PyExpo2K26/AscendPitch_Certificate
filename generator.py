@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import qrcode
 import textwrap
 import os
@@ -45,28 +45,35 @@ def generate_certificate(template_path, output_path, participant_name, college_n
     
     # Define font paths
     name_font_path = os.path.join(fonts_dir, "PlayfairDisplay-Bold.ttf")
-    college_font_path = os.path.join(fonts_dir, "PlayfairDisplay-Regular.ttf")
     desc_font_path = os.path.join(fonts_dir, "PlayfairDisplay-Regular.ttf")
     
     # Check if font files exist
-    for font_file in [name_font_path, college_font_path, desc_font_path]:
+    for font_file in [name_font_path, desc_font_path]:
         if not os.path.exists(font_file):
             raise FileNotFoundError(f"Font file not found: {font_file}")
     
     # Load Fonts
-    name_font = ImageFont.truetype(name_font_path, 130)
-    college_font = ImageFont.truetype(college_font_path, 50)
-    desc_font = ImageFont.truetype(desc_font_path, 48)
+    name_font = ImageFont.truetype(name_font_path, 110)
+    desc_font = ImageFont.truetype(desc_font_path, 42)
 
     # =============================
     # PHOTO
     # =============================
     
-    photo = Image.open(participant_photo_path)
-    photo.thumbnail((260, 260))
-    photo_x = img_width - 520
-    photo_y = 480
-    img.paste(photo, (photo_x, photo_y))
+    photo = Image.open(participant_photo_path).convert("RGB")
+    # Use a fixed square crop so portrait photos don't look tiny after thumbnail scaling.
+    photo = ImageOps.fit(photo, (290, 290), method=Image.Resampling.LANCZOS)
+
+    photo_x = 1580
+    photo_y = 390
+
+    img.paste(photo,(photo_x,photo_y))
+
+    # =============================
+    # ANCHOR: HORIZONTAL LINE
+    # =============================
+    
+    line_y = 640
 
     # =============================
     # NAME
@@ -75,41 +82,45 @@ def generate_certificate(template_path, output_path, participant_name, college_n
     bbox = draw.textbbox((0, 0), participant_name, font=name_font)
     text_width = bbox[2] - bbox[0]
     name_x = (img_width - text_width) // 2
-    name_y = 720
+    name_y = line_y - 85
     draw.text((name_x, name_y), participant_name, fill="#0b2a44", font=name_font)
 
     # =============================
-    # DESCRIPTION (no separate college name)
+    # DESCRIPTION
     # =============================
     
     description = (
-        f"{college_name} has successfully participated in the Ascend Pitch Certificate "
-        "Program held at KGiSL Institute of Technology and demonstrated remarkable "
-        "enthusiasm and commitment during the event held on March 28, 2026."
+        f'from {college_name} has successfully participated in the Ascend Pitch '
+        'held at KGiSL Institute of Technology and demonstrated remarkable enthusiasm '
+        'and commitment during the event held on March 28, 2026.'
     )
 
-    wrapped = textwrap.fill(description, 60)
-    desc_y = 850
+    wrapped = textwrap.fill(description, 65)
+    desc_y = line_y + 60
+    line_spacing = 48
 
     for line in wrapped.split("\n"):
         bbox = draw.textbbox((0, 0), line, font=desc_font)
         text_width = bbox[2] - bbox[0]
         desc_x = (img_width - text_width) // 2
         draw.text((desc_x, desc_y), line, fill="#0b2a44", font=desc_font)
-        desc_y += 50
+        desc_y += line_spacing
 
     # =============================
     # QR
     # =============================
     
-    logger_debug = logging.getLogger(__name__)
-    logger_debug.info(f"Template size: {img.size}")
-    
     qr = qrcode.make(qr_data)
-    qr = qr.resize((200, 200))
-    qr_x = img_width - 420
-    qr_y = img_height - 320
+    qr = qr.resize((240, 240))
+    qr_x = img_width - 400
+    qr_y = img_height - 450
     img.paste(qr, (qr_x, qr_y))
+
+    # =============================
+    # VERIFY TEMPLATE SIZE
+    # =============================
+    
+    print(img.size)
 
     # =============================
     # SAVE CERTIFICATE AS PDF
