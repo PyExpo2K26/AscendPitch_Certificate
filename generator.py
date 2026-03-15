@@ -1,93 +1,131 @@
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+import qrcode
+import textwrap
 import os
 import re
-
-import qrcode
-from PIL import Image, ImageDraw, ImageFont
-
-
-def ensure_default_template(template_path):
-    if os.path.exists(template_path):
-        return
-
-    os.makedirs(os.path.dirname(template_path), exist_ok=True)
-    image = Image.new("RGB", (1600, 1131), color=(247, 244, 235))
-    draw = ImageDraw.Draw(image)
-
-    draw.rectangle((50, 50, 1550, 1081), outline=(40, 40, 40), width=8)
-    draw.text((650, 120), "CERTIFICATE", fill=(20, 20, 20))
-    draw.text((560, 200), "OF PARTICIPATION", fill=(90, 90, 90))
-
-    image.save(template_path)
+import logging
 
 
 def sanitize_name_for_file(name):
-    safe = re.sub(r"\s+", "_", name.strip())
-    safe = re.sub(r"[^A-Za-z0-9_]", "", safe)
-    return safe or "Participant"
+    """Convert participant name into a safe filename.
+    
+    Examples:
+        "Boomathi P" → "boomathi_p"
+        "Boomathi @ KGiSL" → "boomathi_kgisl"
+    """
+    name = name.strip().lower()
+    # Remove special characters first
+    name = re.sub(r'[^a-z0-9\s]', '', name)
+    # Replace spaces with underscores
+    name = re.sub(r'\s+', '_', name)
+    # Remove any trailing underscores
+    name = name.strip('_')
+    return name or "participant"
 
 
-def load_font(font_path, size):
-    if font_path and os.path.exists(font_path):
-        return ImageFont.truetype(font_path, size=size)
-    return ImageFont.load_default()
+def generate_certificate(template_path, output_path, participant_name, college_name, participant_photo_path, qr_data, font_path):
 
+    # Validate template exists
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Certificate template not found: {template_path}")
+    
+    img = Image.open(template_path)
 
-def center_text(draw, text, font, canvas_width, y, fill=(20, 20, 20)):
-    bbox = draw.textbbox((0, 0), text, font=font)
+    draw = ImageDraw.Draw(img)
+
+    img_width, img_height = img.size
+
+    # Construct font paths from the template directory
+    static_dir = os.path.dirname(template_path)
+    fonts_dir = os.path.join(static_dir, "fonts")
+    
+    # Check if fonts directory exists
+    if not os.path.exists(fonts_dir):
+        raise FileNotFoundError(f"Fonts directory not found: {fonts_dir}")
+    
+    # Define font paths
+    name_font_path = os.path.join(fonts_dir, "PlayfairDisplay-Bold.ttf")
+    desc_font_path = os.path.join(fonts_dir, "PlayfairDisplay-Regular.ttf")
+    
+    # Check if font files exist
+    for font_file in [name_font_path, desc_font_path]:
+        if not os.path.exists(font_file):
+            raise FileNotFoundError(f"Font file not found: {font_file}")
+    
+    # Load Fonts
+    name_font = ImageFont.truetype(name_font_path, 110)
+    desc_font = ImageFont.truetype(desc_font_path, 42)
+
+    # =============================
+    # PHOTO
+    # =============================
+    
+    photo = Image.open(participant_photo_path).convert("RGB")
+    # Use a fixed square crop so portrait photos don't look tiny after thumbnail scaling.
+    photo = ImageOps.fit(photo, (290, 290), method=Image.Resampling.LANCZOS)
+
+    photo_x = 1580
+    photo_y = 390
+
+    img.paste(photo,(photo_x,photo_y))
+
+    # =============================
+    # ANCHOR: HORIZONTAL LINE
+    # =============================
+    
+    line_y = 640
+
+    # =============================
+    # NAME
+    # =============================
+    
+    bbox = draw.textbbox((0, 0), participant_name, font=name_font)
     text_width = bbox[2] - bbox[0]
-    x = int((canvas_width - text_width) / 2)
-    draw.text((x, y), text, font=font, fill=fill)
+    name_x = (img_width - text_width) // 2
+    name_y = line_y - 85
+    draw.text((name_x, name_y), participant_name, fill="#0b2a44", font=name_font)
 
-
-def generate_certificate(
-    template_path,
-    output_path,
-    participant_name,
-    college_name,
-    participant_photo_path,
-    qr_data,
-    font_path=None,
-):
-    """Generate certificate image using a fixed template and dynamic participant data."""
-    ensure_default_template(template_path)
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    certificate = Image.open(template_path).convert("RGB")
-    draw = ImageDraw.Draw(certificate)
-
-    width, height = certificate.size
-
-    # Keep placement values centralized so alignment is easy to adjust.
-    title_font = load_font(font_path, 68)
-    name_font = load_font(font_path, 76)
-    detail_font = load_font(font_path, 38)
-    small_font = load_font(font_path, 26)
-
-    center_text(draw, participant_name, name_font, width, 490, fill=(161, 118, 52))
-    center_text(
-        draw,
-        f"College: {college_name}",
-        detail_font,
-        width,
-        740,
-        fill=(50, 50, 50),
+    # =============================
+    # DESCRIPTION
+    # =============================
+    
+    description = (
+        f'from {college_name} has successfully participated in the Ascend Pitch '
+        'held at KGiSL Institute of Technology and demonstrated remarkable enthusiasm '
+        'and commitment during the event held on March 28, 2026.'
     )
 
-    # Participant photo appears near the lower-left area.
-    photo = Image.open(participant_photo_path).convert("RGB")
-    photo = photo.resize((190, 220))
-    certificate.paste(photo, (120, height - 300))
+    wrapped = textwrap.fill(description, 65)
+    desc_y = line_y + 60
+    line_spacing = 48
 
-    # QR is always placed in the bottom-right corner for verification scanning.
-    qr = qrcode.make(qr_data).convert("RGB")
-    qr_size = 170
-    qr = qr.resize((qr_size, qr_size))
-    qr_x = width - qr_size - 80
-    qr_y = height - qr_size - 80
-    certificate.paste(qr, (qr_x, qr_y))
+    for line in wrapped.split("\n"):
+        bbox = draw.textbbox((0, 0), line, font=desc_font)
+        text_width = bbox[2] - bbox[0]
+        desc_x = (img_width - text_width) // 2
+        draw.text((desc_x, desc_y), line, fill="#0b2a44", font=desc_font)
+        desc_y += line_spacing
 
-    draw.text((120, height - 70), "Participant Photo", font=small_font, fill=(60, 60, 60))
-    draw.text((qr_x - 35, qr_y - 35), "Scan to verify", font=small_font, fill=(60, 60, 60))
+    # =============================
+    # QR
+    # =============================
+    
+    qr = qrcode.make(qr_data)
+    qr = qr.resize((240, 240))
+    qr_x = img_width - 400
+    qr_y = img_height - 450
+    img.paste(qr, (qr_x, qr_y))
 
-    certificate.save(output_path, format="PNG")
-    return output_path
+    # =============================
+    # VERIFY TEMPLATE SIZE
+    # =============================
+    
+    print(img.size)
+
+    # =============================
+    # SAVE CERTIFICATE AS PDF
+    # =============================
+    
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    img = img.convert("RGB")
+    img.save(output_path, "PDF")

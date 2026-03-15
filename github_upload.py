@@ -4,18 +4,19 @@ import os
 import requests
 
 
-def build_raw_github_url(repo, branch, file_path):
-    """Build the raw GitHub URL for accessing a file from the repository."""
-    return f"https://raw.githubusercontent.com/{repo}/{branch}/{file_path}"
+def build_github_blob_url(repo, branch, file_path):
+    """Build a GitHub blob URL that opens in the browser instead of downloading directly."""
+    return f"https://github.com/{repo}/blob/{branch}/{file_path}"
 
 
-def upload_certificate_to_github(local_file_path, github_file_path):
+def upload_certificate_to_github(local_file_path, github_file_path, cleanup_local=True):
     """
     Upload a certificate file to GitHub using the GitHub REST API.
     
     Args:
         local_file_path: Path to the local certificate file
         github_file_path: Destination path in GitHub repository
+        cleanup_local: If True, delete the local certificate file after successful upload
     
     Returns:
         The raw GitHub URL of the uploaded file, or None if upload failed
@@ -64,7 +65,16 @@ def upload_certificate_to_github(local_file_path, github_file_path):
         
         if response.status_code in (200, 201):
             print(f"[SUCCESS] Certificate uploaded successfully. Status: {response.status_code}")
-            return build_raw_github_url(repo, branch, github_file_path)
+            
+            # Clean up local certificate file if requested
+            if cleanup_local:
+                try:
+                    os.remove(local_file_path)
+                    print(f"[INFO] Local certificate file deleted: {local_file_path}")
+                except Exception as e:
+                    print(f"[WARNING] Could not delete local certificate: {e}")
+            
+            return build_github_blob_url(repo, branch, github_file_path)
         else:
             print(f"[ERROR] GitHub API error: {response.status_code}")
             print(f"[ERROR] Response: {response.text}")
