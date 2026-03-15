@@ -1,6 +1,5 @@
 import os
 import logging
-from urllib.parse import quote
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -231,26 +230,12 @@ def generate_route():
 
 @app.route("/success", methods=["GET"])
 def success_page():
-    participant_name = request.args.get("name", "")
-    recipient_email = request.args.get("email", "")
-    certificate_link = request.args.get("github_url", "")
-    email_subject = quote("Your Ascend Pitch Certificate")
-    email_body = quote(
-        f"Hello {participant_name},\n\n"
-        f"Download your certificate here:\n{certificate_link}\n\n"
-        "Best regards,\nAscend Pitch"
-    )
-    mailto_link = ""
-    if recipient_email and certificate_link:
-        mailto_link = f"mailto:{recipient_email}?subject={email_subject}&body={email_body}"
-
     return render_template(
         "success.html",
-        name=participant_name,
-        email=recipient_email,
+        name=request.args.get("name", ""),
+        email=request.args.get("email", ""),
         cert_id=request.args.get("cert_id", ""),
-        github_url=certificate_link,
-        mailto_link=mailto_link,
+        github_url=request.args.get("github_url", ""),
         upload_status=request.args.get("upload_status", "skipped"),
         email_status=request.args.get("email_status", "unknown"),
     )
