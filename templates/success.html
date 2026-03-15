@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Certificate Generated</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #f7fafc;
+            color: #1f2937;
+        }
+
+        .wrap {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 16px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 24px;
+        }
+
+        .ok {
+            color: #166534;
+        }
+
+        .warn {
+            color: #b45309;
+        }
+
+        a {
+            color: #0f766e;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="card">
+            <h1>Certificate Generated</h1>
+            <p><strong>Participant:</strong> {{ name }}</p>
+            <p><strong>Email:</strong> {{ email }}</p>
+
+            {% if email_status == 'sent' %}
+                <p class="ok"><strong>Email:</strong> Sent successfully.</p>
+            {% else %}
+                <p class="warn"><strong>Email:</strong> Not sent. Check Gmail SMTP app password settings.</p>
+            {% endif %}
+
+            <p>
+                <a href="{{ github_url }}" target="_blank">
+                    Open GitHub Certificate Link
+                </a>
+            </p>
+
+            <p>
+                <a href="{{ url_for('form_page') }}">Generate another certificate</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
