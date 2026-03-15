@@ -23,7 +23,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 CERTIFICATES_DIR = os.path.join(BASE_DIR, "certificates")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-TEMPLATE_IMAGE = os.path.join(STATIC_DIR, "certificate_template.jpeg")
+TEMPLATE_IMAGE = os.path.join(STATIC_DIR, "certificate_template.png")
 FONT_PATH = os.path.join(STATIC_DIR, "fonts", "DejaVuSans-Bold.ttf")
 
 EVENT_NAME = "Ascend Pitch Certificate Program"

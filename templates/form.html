@@ -14,6 +14,8 @@
             --accent-2: #0ea5e9;
             --error-bg: #fee2e2;
             --error-text: #991b1b;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
         }
 
         body {
@@ -24,7 +26,7 @@
         }
 
         .container {
-            max-width: 850px;
+            max-width: 900px;
             margin: 30px auto;
             padding: 0 16px;
         }
@@ -49,6 +51,14 @@
         .alert {
             background: var(--error-bg);
             color: var(--error-text);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .success {
+            background: var(--success-bg);
+            color: var(--success-text);
             padding: 10px;
             border-radius: 8px;
             margin-bottom: 12px;
@@ -89,15 +99,320 @@
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
 
         button:hover {
             opacity: 0.95;
         }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .button-group button {
+            flex: 1;
+            margin: 0;
+        }
+
+        .webcam-section {
+            display: none;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: #f8fafc;
+        }
+
+        .webcam-section.active {
+            display: block;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            background: #000;
+            margin-bottom: 12px;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .photo-preview {
+            text-align: center;
+            margin: 12px 0;
+        }
+
+        .photo-preview img {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 2px solid #cbd5e1;
+        }
+
+        .webcam-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .info-msg {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 4px 0 0 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="card">
+            <h1>Event Certificate Generator</h1>
+            <p class="meta"><strong>Event:</strong> {{ event_name }}</p>
+            <p class="meta"><strong>Date:</strong> {{ event_date }}</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('generate_route') }}" method="POST" enctype="multipart/form-data">
+                <div>
+                    <label for="name">Participant Name</label>
+                    <input id="name" name="name" type="text" required />
+                </div>
+
+                <div>
+                    <label for="college">College Name</label>
+                    <input id="college" name="college" type="text" required />
+                </div>
+
+                <div>
+                    <label for="email">Email Address</label>
+                    <input id="email" name="email" type="email" required />
+                </div>
+
+                <!-- Photo Input Section -->
+                <div class="full">
+                    <label>Participant Photo</label>
+                    <div class="button-group">
+                        <button type="button" id="uploadPhotoBtn" class="active">
+                            📤 Upload Photo
+                        </button>
+                        <button type="button" id="capturePhotoBtn">
+                            📷 Capture from Webcam
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Upload Photo Section -->
+                <div id="uploadSection" class="full">
+                    <input id="photo" name="photo" type="file" accept="image/*" />
+                    <p class="info-msg">Supported formats: PNG, JPG, JPEG, WebP</p>
+                </div>
+
+                <!-- Webcam Capture Section -->
+                <div id="webcamSection" class="webcam-section full">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    
+                    <div class="photo-preview">
+                        <img id="photoPreview" alt="Captured photo" class="hidden" />
+                    </div>
+
+                    <div class="webcam-controls">
+                        <button type="button" id="captureBtn" class="hidden">
+                            📸 Capture Photo
+                        </button>
+                        <button type="button" id="retakeBtn" class="hidden">
+                            🔄 Retake
+                        </button>
+                        <button type="button" id="stopCameraBtn">
+                            ❌ Stop Camera
+                        </button>
+                    </div>
+                    <p class="info-msg">Please ensure good lighting and face the camera</p>
+                </div>
+
+                <div class="full">
+                    <button type="submit" id="generateBtn">Generate Certificate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Webcam capture functionality
+        const uploadPhotoBtn = document.getElementById('uploadPhotoBtn');
+        const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+        const uploadSection = document.getElementById('uploadSection');
+        const webcamSection = document.getElementById('webcamSection');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const photoPreview = document.getElementById('photoPreview');
+        const photoInput = document.getElementById('photo');
+        const captureBtn = document.getElementById('captureBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const stopCameraBtn = document.getElementById('stopCameraBtn');
+        const generateBtn = document.getElementById('generateBtn');
+
+        let stream = null;
+        let photoCaptured = false;
+        let usingWebcam = false;
+
+        // Toggle between upload and capture modes
+        uploadPhotoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            uploadPhotoBtn.classList.add('active');
+            capturePhotoBtn.classList.remove('active');
+            uploadSection.style.display = 'block';
+            webcamSection.classList.remove('active');
+            usingWebcam = false;
+            stopCamera();
+            photoInput.setAttribute('required', '');
+        });
+
+        capturePhotoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            capturePhotoBtn.classList.add('active');
+            uploadPhotoBtn.classList.remove('active');
+            uploadSection.style.display = 'none';
+            webcamSection.classList.add('active');
+            usingWebcam = true;
+            photoInput.removeAttribute('required');
+            startCamera();
+        });
+
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                video.srcObject = stream;
+                captureBtn.classList.remove('hidden');
+                stopCameraBtn.classList.remove('hidden');
+                photoPreview.classList.add('hidden');
+                retakeBtn.classList.add('hidden');
+                photoCaptured = false;
+            } catch (error) {
+                console.error('Webcam error:', error);
+                alert('Could not access webcam: ' + error.message + '\n\nPlease use the upload option instead.');
+                uploadPhotoBtn.click();
+            }
+        }
+
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        // Capture photo from video
+        captureBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                
+                // Convert canvas to blob and set as form input
+                canvas.toBlob(blob => {
+                    if (!blob) {
+                        alert('Failed to capture photo. Please try again.');
+                        return;
+                    }
+                    
+                    try {
+                        // Create a File from the blob
+                        const file = new File([blob], 'captured_photo.png', { type: 'image/png' });
+                        
+                        // Use FormData to set the file
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        photoInput.files = dt.files;
+                        
+                        // Show preview
+                        photoPreview.src = canvas.toDataURL();
+                        photoPreview.classList.remove('hidden');
+                        
+                        // Update button visibility
+                        captureBtn.classList.add('hidden');
+                        stopCameraBtn.classList.add('hidden');
+                        retakeBtn.classList.remove('hidden');
+                        photoCaptured = true;
+                    } catch (e) {
+                        console.error('Error setting file:', e);
+                        alert('Error saving captured photo. Please try again.');
+                    }
+                }, 'image/png', 0.95);
+            } catch (error) {
+                console.error('Capture error:', error);
+                alert('Error capturing photo: ' + error.message);
+            }
+        });
+
+        // Retake photo
+        retakeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            photoCaptured = false;
+            photoPreview.classList.add('hidden');
+            photoInput.value = '';
+            captureBtn.classList.remove('hidden');
+            stopCameraBtn.classList.remove('hidden');
+            retakeBtn.classList.add('hidden');
+        });
+
+        // Stop camera
+        stopCameraBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            stopCamera();
+            webcamSection.classList.remove('active');
+            uploadSection.style.display = 'block';
+            uploadPhotoBtn.classList.add('active');
+            capturePhotoBtn.classList.remove('active');
+            usingWebcam = false;
+            photoInput.setAttribute('required', '');
+        });
+
+        // Form submission validation
+        document.querySelector('form').addEventListener('submit', (e) => {
+            if (usingWebcam && !photoCaptured) {
+                e.preventDefault();
+                alert('Please capture a photo before generating certificate');
+                return false;
+            }
+            
+            if (!usingWebcam && !photoInput.files.length) {
+                e.preventDefault();
+                alert('Please select a photo before generating certificate');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
         <div class="card">
             <h1>Event Certificate Generator</h1>
             <p class="meta"><strong>Event:</strong> {{ event_name }}</p>
