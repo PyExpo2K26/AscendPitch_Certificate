@@ -4,9 +4,9 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for, Response, send_file
+from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 
-from email_sender import send_certificate_email
 from generator import generate_certificate, sanitize_name_for_file
 from github_upload import upload_certificate_to_github
 
@@ -18,7 +18,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+dotenv_loaded = load_dotenv(dotenv_path=ENV_PATH)
+logger.info(f"Dotenv loaded from {ENV_PATH}: {dotenv_loaded}")
 
 CERTIFICATES_DIR = os.path.join(BASE_DIR, "certificates")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
@@ -32,6 +34,60 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-this-secret")
+mail_username = os.getenv("MAIL_USERNAME")
+mail_password = os.getenv("MAIL_PASSWORD")
+logger.info(f"MAIL_USERNAME loaded: {bool(mail_username)}")
+logger.info(f"MAIL_PASSWORD loaded: {bool(mail_password)}")
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = mail_username
+app.config["MAIL_PASSWORD"] = mail_password
+app.config["MAIL_DEFAULT_SENDER"] = mail_username
+
+
+def validate_mail_configuration():
+    missing = []
+    if not app.config.get("MAIL_USERNAME"):
+        missing.append("MAIL_USERNAME")
+    if not app.config.get("MAIL_PASSWORD"):
+        missing.append("MAIL_PASSWORD")
+
+    if missing:
+        raise RuntimeError(
+            f"Missing required mail configuration: {', '.join(missing)}. "
+            "Set these values in the project root .env file."
+        )
+
+
+validate_mail_configuration()
+
+mail = Mail(app)
+
+
+def send_certificate_email(to_email, name, verification_link, certificate_path):
+    """Send certificate email with verification link and PDF attachment."""
+    validate_mail_configuration()
+    msg = Message(
+        subject="Certificate Generated",
+        recipients=[to_email],
+        body=(
+            f"Dear {name},\n\n"
+            "Thank you for participating in the AscendPitch held at KGiSL Institute of Technology on 28.03.2026.\n"
+            "We hope you gained a better experience at the event.\n\n"
+            "Your certificate is attached in this mail.\n\n"
+            "Verification link:\n"
+            f"{verification_link}\n\n"
+            "Thank you\n\n"
+            "Best Regards,\n"
+            "PyExpo Crew"
+        ),
+    )
+    with open(certificate_path, "rb") as certificate_file:
+        file_data = certificate_file.read()
+
+    msg.attach("certificate.pdf", "application/pdf", file_data)
+    mail.send(msg)
 
 
 def allowed_file(filename):
@@ -122,19 +178,14 @@ def generate_route():
     github_repo = os.getenv("GITHUB_REPO")
     github_branch = os.getenv("GITHUB_BRANCH", "main")
     github_folder = os.getenv("GITHUB_CERT_FOLDER", "generated-certificates")
-    gmail_user = os.getenv("GMAIL_USER")
-    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
-
     if is_missing_or_placeholder(github_token):
         logger.warning("GitHub upload disabled: GITHUB_TOKEN is missing or still using a placeholder value")
-
-    if is_missing_or_placeholder(gmail_user) or is_missing_or_placeholder(gmail_password):
-        logger.warning("Email delivery disabled: Gmail credentials are missing or still using placeholder values")
 
     clean_name = sanitize_name_for_file(participant_name)
     certificate_id = clean_name
     certificate_filename = f"{clean_name}.pdf"
     certificate_local_path = os.path.join(CERTIFICATES_DIR, certificate_filename)
+    output_path = certificate_local_path
     local_certificate_url = url_for("view_certificate", cert_id=certificate_id, _external=True)
 
     github_file_path = f"{github_folder.strip('/')}/{certificate_filename}".lstrip("/")
@@ -142,7 +193,6 @@ def generate_route():
         f"https://pyexpo2k26.github.io/AscendPitch_Certificate/generated-certificates/{certificate_filename}"
     )
     upload_enabled = has_config_value(github_repo) and has_config_value(github_token)
-    email_enabled = has_config_value(gmail_user) and has_config_value(gmail_password)
     verification_link = hosted_certificate_url if upload_enabled else local_certificate_url
 
     os.makedirs(UPLOADS_DIR, exist_ok=True)
@@ -157,14 +207,14 @@ def generate_route():
         logger.info("Generating certificate...")
         generate_certificate(
             template_path=TEMPLATE_IMAGE,
-            output_path=certificate_local_path,
+            output_path=output_path,
             participant_name=participant_name,
             college_name=college_name,
             participant_photo_path=photo_path,
             qr_data=verification_link,
             font_path=FONT_PATH,
         )
-        logger.info(f"Certificate generated at: {certificate_local_path}")
+        logger.info(f"Certificate generated at: {output_path}")
     except Exception as exc:
         flash(f"Certificate generation failed: {exc}", "error")
         logger.error(f"Certificate generation error: {exc}", exc_info=True)
@@ -196,24 +246,20 @@ def generate_route():
     else:
         flash("GitHub upload skipped because GITHUB_TOKEN is missing or still set to the placeholder value in .env.", "error")
 
-    email_status = "skipped"
-    if email_enabled:
-        try:
-            logger.info(f"Sending certificate email to: {email}")
-            send_certificate_email(
-                recipient_email=email,
-                participant_name=participant_name,
-                certificate_path=certificate_local_path,
-                certificate_link=certificate_link,
-            )
-            email_status = "sent"
-            logger.info(f"Email sent successfully to: {email}")
-        except Exception as e:
-            email_status = "failed"
-            logger.error(f"Email sending failed: {e}", exc_info=True)
-    else:
-        flash("Email skipped because GMAIL_USER or GMAIL_APP_PASSWORD is missing or still set to a placeholder value in .env.", "error")
-        logger.info("Skipping email delivery because Gmail configuration is incomplete")
+    email_status = "failed"
+    try:
+        logger.info(f"Sending certificate email to: {email}")
+        send_certificate_email(
+            email,
+            participant_name,
+            certificate_link,
+            output_path,
+        )
+        email_status = "sent"
+        logger.info(f"Email sent successfully to: {email}")
+    except Exception as e:
+        logger.error(f"Email sending failed: {e}", exc_info=True)
+        flash(f"Email sending failed: {e}", "error")
 
     return redirect(
         url_for(
