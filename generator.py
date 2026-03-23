@@ -1,6 +1,5 @@
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import qrcode
-import textwrap
 import os
 import re
 
@@ -51,61 +50,96 @@ def generate_certificate(template_path, output_path, participant_name, college_n
         if not os.path.exists(font_file):
             raise FileNotFoundError(f"Font file not found: {font_file}")
     
-    # Load Fonts
-    name_font = ImageFont.truetype(name_font_path, 110)
-    desc_font = ImageFont.truetype(desc_font_path, 42)
+    # Start with balanced font sizes and auto-fit where needed.
+    name_font_size = max(52, int(img_height * 0.030))
+    desc_font_size = max(20, int(img_height * 0.010))
+    name_font = ImageFont.truetype(name_font_path, name_font_size)
+    desc_font = ImageFont.truetype(desc_font_path, desc_font_size)
+
+    # Relative anchors keep placement stable if template dimensions change.
+    line_y = int(img_height * 0.49)
+
+    photo_size = max(210, int(img_height * 0.100))
+    photo_card_padding = 12
+    photo_card_size = photo_size + (photo_card_padding * 2)
+    photo_margin_right = int(img_width * 0.065)
+    photo_margin_top = int(img_height * 0.100)
+    photo_x = img_width - photo_card_size - photo_margin_right
+    photo_y = photo_margin_top
+
+    qr_size = max(170, int(img_height * 0.085))
+    qr_card_padding = 12
+    qr_card_size = qr_size + (qr_card_padding * 2)
+    qr_margin_right = int(img_width * 0.055)
+    qr_margin_bottom = int(img_height * 0.095)
+    qr_x = img_width - qr_card_size - qr_margin_right
+    qr_y = img_height - qr_card_size - qr_margin_bottom
 
     if participant_photo_path:
         photo = Image.open(participant_photo_path).convert("RGB")
-        photo = ImageOps.fit(photo, (290, 290), method=Image.Resampling.LANCZOS)
-        img.paste(photo, (1580, 390))
+        photo = ImageOps.fit(photo, (photo_size, photo_size), method=Image.Resampling.LANCZOS)
+
+        # Keep photo inside border on a white card.
+        framed_photo = Image.new("RGB", (photo_card_size, photo_card_size), "white")
+        frame_draw = ImageDraw.Draw(framed_photo)
+        frame_draw.rectangle(
+            [0, 0, photo_card_size - 1, photo_card_size - 1],
+            outline="#d1d5db",
+            width=1,
+        )
+        framed_photo.paste(photo, (photo_card_padding, photo_card_padding))
+        img.paste(framed_photo, (photo_x, photo_y))
 
     # =============================
     # ANCHOR: HORIZONTAL LINE
     # =============================
     
-    line_y = 640
-
     # =============================
     # NAME
     # =============================
     
-    bbox = draw.textbbox((0, 0), participant_name, font=name_font)
+    # Auto-shrink long names so they remain centered in the available middle area.
+    max_name_width = int(img_width * 0.58)
+    while True:
+        bbox = draw.textbbox((0, 0), participant_name, font=name_font)
+        text_width = bbox[2] - bbox[0]
+        if text_width <= max_name_width or name_font_size <= 34:
+            break
+        name_font_size -= 2
+        name_font = ImageFont.truetype(name_font_path, name_font_size)
+
     text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
     name_x = (img_width - text_width) // 2
-    name_y = line_y - 85
+    name_y = line_y - text_height - 14
     draw.text((name_x, name_y), participant_name, fill="#0b2a44", font=name_font)
 
     # =============================
     # DESCRIPTION
     # =============================
     
-    description = (
-        f'from {college_name} has successfully participated in the Ascend Pitch '
-        'held at KGiSL Institute of Technology and demonstrated remarkable enthusiasm '
-        'and commitment during the event held on March 28, 2026.'
-    )
-
-    wrapped = textwrap.fill(description, 65)
-    desc_y = line_y + 60
-    line_spacing = 48
-
-    for line in wrapped.split("\n"):
-        bbox = draw.textbbox((0, 0), line, font=desc_font)
+    # Keep body text minimal to avoid overlapping the printed template wording.
+    if college_name:
+        college_line = f"{college_name}"
+        bbox = draw.textbbox((0, 0), college_line, font=desc_font)
         text_width = bbox[2] - bbox[0]
         desc_x = (img_width - text_width) // 2
-        draw.text((desc_x, desc_y), line, fill="#0b2a44", font=desc_font)
-        desc_y += line_spacing
+        desc_y = line_y + 20
+        draw.text((desc_x, desc_y), college_line, fill="#0b2a44", font=desc_font)
 
     # =============================
     # QR
     # =============================
     
-    qr = qrcode.make(qr_data)
-    qr = qr.resize((240, 240))
-    qr_x = img_width - 400
-    qr_y = img_height - 450
-    img.paste(qr, (qr_x, qr_y))
+    qr = qrcode.make(qr_data).convert("RGB")
+    qr = qr.resize((qr_size, qr_size), Image.Resampling.NEAREST)
+
+    # Keep QR inside border on a white card.
+    framed_qr = Image.new("RGB", (qr_card_size, qr_card_size), "white")
+    qr_draw = ImageDraw.Draw(framed_qr)
+    qr_draw.rectangle([0, 0, qr_card_size - 1, qr_card_size - 1], outline="#d1d5db", width=1)
+    framed_qr.paste(qr, (qr_card_padding, qr_card_padding))
+    img.paste(framed_qr, (qr_x, qr_y))
 
     # =============================
     # VERIFY TEMPLATE SIZE
