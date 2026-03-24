@@ -12,16 +12,24 @@ def sanitize_name_for_file(name):
         "Boomathi @ KGiSL" → "boomathi_kgisl"
     """
     name = name.strip().lower()
-    # Remove special characters first
-    name = re.sub(r'[^a-z0-9\s]', '', name)
-    # Replace spaces with underscores
-    name = re.sub(r'\s+', '_', name)
-    # Remove any trailing underscores
+    # Keep only lowercase letters, numbers, spaces, and underscores.
+    name = re.sub(r'[^a-z0-9_\s]', '', name)
+    # Normalize whitespace and repeated underscores into single underscores.
+    name = re.sub(r'[\s_]+', '_', name)
+    # Remove leading/trailing underscores.
     name = name.strip('_')
     return name or "participant"
 
 
-def generate_certificate(template_path, output_path, participant_name, college_name, participant_photo_path, qr_data, font_path):
+def generate_certificate(
+    template_path,
+    output_path,
+    participant_name,
+    college_name,
+    participant_photo_path,
+    qr_data,
+    font_path,
+):
 
     # Validate template exists
     if not os.path.exists(template_path):

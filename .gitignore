@@ -1,14 +1,14 @@
 # Environment variables
 .env
-.venv/
 
 # Python
-**pycache**/
+__pycache__/
 *.pyc
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Application-specific
-certificates/
-uploads/
+# Build artifacts
 parts/
 sdist/
 var/
@@ -19,15 +19,18 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.pytest_cache/
-.coverage
-htmlcov/
+
+# Application-specific
+certificates/
+uploads/
+temp/
+*.log
 
 # Virtual environments
 venv/
 ENV/
 env/
-.venv
+.venv/
 
 # IDE
 .vscode/
@@ -35,13 +38,6 @@ env/
 *.swp
 *.swo
 *~
-.DS_Store
-
-# Generated files
-certificates/
-uploads/
-temp/
-*.log
 
 # Flask
 instance/

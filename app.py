@@ -21,6 +21,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 dotenv_loaded = load_dotenv(dotenv_path=ENV_PATH)
 logger.info(f"Dotenv loaded from {ENV_PATH}: {dotenv_loaded}")
+COUNTER_FILE = os.path.join(BASE_DIR, "certificate_counter.txt")
 
 CERTIFICATES_DIR = os.path.join(BASE_DIR, "certificates")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
@@ -65,7 +66,13 @@ validate_mail_configuration()
 mail = Mail(app)
 
 
-def send_certificate_email(to_email, name, verification_link, certificate_path):
+def send_certificate_email(
+    to_email,
+    name,
+    verification_link,
+    certificate_path,
+    attachment_filename,
+):
     """Send certificate email with verification link and PDF attachment."""
     validate_mail_configuration()
     msg = Message(
@@ -86,7 +93,7 @@ def send_certificate_email(to_email, name, verification_link, certificate_path):
     with open(certificate_path, "rb") as certificate_file:
         file_data = certificate_file.read()
 
-    msg.attach("certificate.pdf", "application/pdf", file_data)
+    msg.attach(attachment_filename, "application/pdf", file_data)
     mail.send(msg)
 
 
@@ -104,6 +111,27 @@ def has_config_value(value):
 
 def is_missing_or_placeholder(value):
     return not has_config_value(value)
+
+
+def generate_certificate_id():
+    """Generate a unique sequential certificate ID like ASCEND-2026-0001."""
+    if not os.path.exists(COUNTER_FILE):
+        with open(COUNTER_FILE, "w", encoding="utf-8") as counter_file:
+            counter_file.write("1")
+
+    try:
+        with open(COUNTER_FILE, "r", encoding="utf-8") as counter_file:
+            raw_value = counter_file.read().strip()
+            counter = int(raw_value) if raw_value else 1
+    except (OSError, ValueError):
+        counter = 1
+
+    certificate_id = f"ASCEND-2026-{counter:04d}"
+
+    with open(COUNTER_FILE, "w", encoding="utf-8") as counter_file:
+        counter_file.write(str(counter + 1))
+
+    return certificate_id
 
 
 @app.route("/", methods=["GET"])
@@ -182,11 +210,14 @@ def generate_route():
         logger.warning("GitHub upload disabled: GITHUB_TOKEN is missing or still using a placeholder value")
 
     clean_name = sanitize_name_for_file(participant_name)
-    certificate_id = clean_name
-    certificate_filename = f"{clean_name}.pdf"
+    college_first_word = college_name.strip().split()[0] if college_name.strip() else "college"
+    clean_college = sanitize_name_for_file(college_first_word)
+    certificate_id = generate_certificate_id()
+    certificate_stem = f"{clean_name}_{clean_college}_{certificate_id}"
+    certificate_filename = f"{certificate_stem}.pdf"
     certificate_local_path = os.path.join(CERTIFICATES_DIR, certificate_filename)
     output_path = certificate_local_path
-    local_certificate_url = url_for("view_certificate", cert_id=certificate_id, _external=True)
+    local_certificate_url = url_for("view_certificate", cert_id=certificate_stem, _external=True)
 
     github_file_path = f"{github_folder.strip('/')}/{certificate_filename}".lstrip("/")
     hosted_certificate_url = (
@@ -254,6 +285,7 @@ def generate_route():
             participant_name,
             certificate_link,
             output_path,
+            certificate_filename,
         )
         email_status = "sent"
         logger.info(f"Email sent successfully to: {email}")
@@ -266,7 +298,7 @@ def generate_route():
             "success_page",
             name=participant_name,
             email=email,
-            cert_id=certificate_id,
+            cert_id=certificate_stem,
             github_url=certificate_link,
             upload_status=upload_status,
             email_status=email_status,
