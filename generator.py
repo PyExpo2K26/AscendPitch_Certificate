@@ -124,7 +124,7 @@ def generate_certificate(template_path, output_path, participant_name, college_n
         bbox = draw.textbbox((0, 0), college_line, font=desc_font)
         text_width = bbox[2] - bbox[0]
         desc_x = (img_width - text_width) // 2
-        desc_y = line_y + 20
+        desc_y = line_y + 56
         draw.text((desc_x, desc_y), college_line, fill="#0b2a44", font=desc_font)
 
     # =============================
