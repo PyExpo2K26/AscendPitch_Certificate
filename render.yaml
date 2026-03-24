@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: ascendpitch-certificate
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    autoDeploy: true
+    disk:
+      name: ascendpitch-data
+      mountPath: /var/data/ascendpitch
+      sizeGB: 1
+    envVars:
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+      - key: GITHUB_BRANCH
+        value: main
+      - key: GITHUB_CERT_FOLDER
+        value: generated-certificates
+      - key: APP_STORAGE_DIR
+        value: /var/data/ascendpitch

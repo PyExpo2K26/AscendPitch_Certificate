@@ -21,13 +21,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 dotenv_loaded = load_dotenv(dotenv_path=ENV_PATH)
 logger.info(f"Dotenv loaded from {ENV_PATH}: {dotenv_loaded}")
-COUNTER_FILE = os.path.join(BASE_DIR, "certificate_counter.txt")
+RUNTIME_DIR = os.getenv("APP_STORAGE_DIR", BASE_DIR)
+COUNTER_FILE = os.path.join(RUNTIME_DIR, "certificate_counter.txt")
 
-CERTIFICATES_DIR = os.path.join(BASE_DIR, "certificates")
-UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+CERTIFICATES_DIR = os.path.join(RUNTIME_DIR, "certificates")
+UPLOADS_DIR = os.path.join(RUNTIME_DIR, "uploads")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATE_IMAGE = os.path.join(STATIC_DIR, "certificate_template.png")
 FONT_PATH = os.path.join(STATIC_DIR, "fonts", "DejaVuSans-Bold.ttf")
+MAIL_SENDER_ADDRESS = "pyexpo@kgkite.ac.in"
 
 EVENT_NAME = "Ascend Pitch"
 EVENT_DATE = "March 28, 2026"
@@ -35,33 +37,27 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-this-secret")
-mail_username = os.getenv("MAIL_USERNAME")
-mail_password = os.getenv("MAIL_PASSWORD")
-logger.info(f"MAIL_USERNAME loaded: {bool(mail_username)}")
+mail_password = os.getenv("MAIL_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD")
+logger.info(f"Fixed mail sender configured: {MAIL_SENDER_ADDRESS}")
 logger.info(f"MAIL_PASSWORD loaded: {bool(mail_password)}")
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = mail_username
+app.config["MAIL_USERNAME"] = MAIL_SENDER_ADDRESS
 app.config["MAIL_PASSWORD"] = mail_password
-app.config["MAIL_DEFAULT_SENDER"] = mail_username
+app.config["MAIL_DEFAULT_SENDER"] = MAIL_SENDER_ADDRESS
 
 
 def validate_mail_configuration():
     missing = []
-    if not app.config.get("MAIL_USERNAME"):
-        missing.append("MAIL_USERNAME")
     if not app.config.get("MAIL_PASSWORD"):
         missing.append("MAIL_PASSWORD")
 
     if missing:
         raise RuntimeError(
             f"Missing required mail configuration: {', '.join(missing)}. "
-            "Set these values in the project root .env file."
+            "Set MAIL_PASSWORD in the project root .env file or in Render environment variables."
         )
-
-
-validate_mail_configuration()
 
 mail = Mail(app)
 
@@ -78,6 +74,7 @@ def send_certificate_email(
     msg = Message(
         subject="Ascend Pitch 2026 - Certificate of Participation",
         recipients=[to_email],
+        sender=MAIL_SENDER_ADDRESS,
         body=(
             f"Dear {name},\n\n"
             "Thank you for participating in the AscendPitch held at KGiSL Institute of Technology on 28.03.2026.\n"
@@ -115,6 +112,8 @@ def is_missing_or_placeholder(value):
 
 def generate_certificate_id():
     """Generate a unique sequential certificate ID like ASCEND-2026-0001."""
+    os.makedirs(os.path.dirname(COUNTER_FILE), exist_ok=True)
+
     if not os.path.exists(COUNTER_FILE):
         with open(COUNTER_FILE, "w", encoding="utf-8") as counter_file:
             counter_file.write("1")
@@ -323,9 +322,10 @@ if __name__ == "__main__":
     logger.info("Starting Flask application...")
     logger.info(f"GitHub Repo: {os.getenv('GITHUB_REPO', 'Not configured')}")
     logger.info(f"GitHub Branch: {os.getenv('GITHUB_BRANCH', 'main')}")
+    logger.info(f"Storage directory: {RUNTIME_DIR}")
     
     os.makedirs(CERTIFICATES_DIR, exist_ok=True)
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     os.makedirs(STATIC_DIR, exist_ok=True)
     # ensure_default_template(TEMPLATE_IMAGE)
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")

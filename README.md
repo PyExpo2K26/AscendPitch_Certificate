@@ -9,7 +9,7 @@ Flask-based web application that generates participant certificates from a fixed
 - Automatic file naming: `certificates/Participant_Name.png`
 - GitHub REST API integration for certificate uploads
 - QR code generation containing GitHub raw certificate URL
-- Email delivery using Gmail SMTP with app password
+- Email delivery using Gmail SMTP with a fixed sender address
 - Proper error handling and logging for debugging
 - Environment-based configuration with `.env` file
 
@@ -18,6 +18,7 @@ Flask-based web application that generates participant certificates from a fixed
 ```
 project/
 ├── app.py                          # Flask application
+├── render.yaml                     # Render deployment config
 ├── generator.py                    # Certificate generation logic
 ├── github_upload.py                # GitHub API integration
 ├── email_sender.py                 # Email functionality
@@ -68,8 +69,14 @@ GITHUB_REPO=your-organization/event-certificates
 GITHUB_BRANCH=main
 GITHUB_CERT_FOLDER=certificates
 
-# Gmail Configuration (optional, only if using email)
-GMAIL_USER=your-email@gmail.com
+# Email Configuration
+# The app always sends from: pyexpo@kgkite.ac.in
+
+# Generate app password from: https://myaccount.google.com/apppasswords
+# This is NOT your regular Gmail password
+MAIL_PASSWORD=your-gmail-app-password
+
+# Optional legacy alias used by email_sender.py
 GMAIL_APP_PASSWORD=your-gmail-app-password
 ```
 
@@ -95,7 +102,27 @@ GMAIL_APP_PASSWORD=your-gmail-app-password
 2. Go to https://myaccount.google.com/apppasswords
 3. Select Mail and Windows Computer
 4. Generate an app password
-5. Use this password (16 characters) as `GMAIL_APP_PASSWORD`
+5. Use this password (16 characters) as `MAIL_PASSWORD` in Render or `.env`
+
+### 6. Deploy on Render
+
+1. Push the repository to GitHub.
+2. In Render, create a new Web Service from the repository.
+3. Render should detect [render.yaml](render.yaml) automatically, or you can use it as the blueprint.
+4. Add these environment variables in the Render dashboard if they are not already synced:
+   - `FLASK_SECRET_KEY`
+   - `MAIL_PASSWORD`
+   - `GITHUB_TOKEN`
+   - `GITHUB_REPO`
+   - `GITHUB_BRANCH`
+   - `GITHUB_CERT_FOLDER`
+   - `APP_STORAGE_DIR`
+5. Deploy the project.
+
+Notes for Render:
+- The sender address is fixed in code as `pyexpo@kgkite.ac.in`.
+- Runtime certificate and upload files are written to the Render disk mounted at `/var/data/ascendpitch`.
+- Keep GitHub upload enabled so the verification link remains accessible after the request finishes.
 
 ## Running the Application
 
@@ -157,10 +184,16 @@ The application will start on:
 
 ### Email Not Sending
 
-- Verify `GMAIL_USER` and `GMAIL_APP_PASSWORD` are correct
+- Verify `MAIL_PASSWORD` is set correctly
 - Ensure Gmail account has 2FA enabled
 - Use app-generated password, not regular Gmail password
 - Check console logs for SMTP errors
+
+### Render Deployment Issues
+
+- Confirm the project has been deployed with [render.yaml](render.yaml)
+- Make sure all required environment variables are set in the Render dashboard
+- Do not rely on locally stored certificate files; use GitHub upload for persistent links
 
 ## Logging
 

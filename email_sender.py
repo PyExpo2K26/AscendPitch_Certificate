@@ -5,20 +5,22 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
+SENDER_EMAIL = "pyexpo@kgkite.ac.in"
+
+
 def send_certificate_email(
     recipient_email,
     participant_name,
     certificate_path,
     certificate_link,
 ):
-    sender_email = os.getenv("GMAIL_USER")
-    app_password = os.getenv("GMAIL_APP_PASSWORD")
+    app_password = os.getenv("MAIL_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD")
 
-    if not sender_email or not app_password:
-        raise RuntimeError("Missing GMAIL_USER or GMAIL_APP_PASSWORD environment variables")
+    if not app_password:
+        raise RuntimeError("Missing MAIL_PASSWORD or GMAIL_APP_PASSWORD environment variables")
 
     message = MIMEMultipart()
-    message["From"] = sender_email
+    message["From"] = SENDER_EMAIL
     message["To"] = recipient_email
     message["Subject"] = "Your Event Certificate"
 
@@ -43,5 +45,5 @@ def send_certificate_email(
 
     with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
         smtp.starttls()
-        smtp.login(sender_email, app_password)
-        smtp.sendmail(sender_email, recipient_email, message.as_string())
+        smtp.login(SENDER_EMAIL, app_password)
+        smtp.sendmail(SENDER_EMAIL, recipient_email, message.as_string())
