@@ -76,7 +76,7 @@ def send_certificate_email(
     """Send certificate email with verification link and PDF attachment."""
     validate_mail_configuration()
     msg = Message(
-        subject="Certificate Generated",
+        subject="Ascend Pitch 2026 - Certificate of Participation",
         recipients=[to_email],
         body=(
             f"Dear {name},\n\n"
