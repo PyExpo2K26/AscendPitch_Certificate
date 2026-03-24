@@ -59,19 +59,19 @@ def generate_certificate(template_path, output_path, participant_name, college_n
     # Relative anchors keep placement stable if template dimensions change.
     line_y = int(img_height * 0.49)
 
-    photo_size = max(210, int(img_height * 0.100))
+    photo_size = max(220, int(img_height * 0.167))
     photo_card_padding = 12
     photo_card_size = photo_size + (photo_card_padding * 2)
-    photo_margin_right = int(img_width * 0.065)
-    photo_margin_top = int(img_height * 0.100)
+    photo_margin_right = int(img_width * 0.120)
+    photo_margin_top = int(img_height * 0.318)
     photo_x = img_width - photo_card_size - photo_margin_right
     photo_y = photo_margin_top
 
-    qr_size = max(170, int(img_height * 0.085))
+    qr_size = max(190, int(img_height * 0.150))
     qr_card_padding = 12
     qr_card_size = qr_size + (qr_card_padding * 2)
-    qr_margin_right = int(img_width * 0.055)
-    qr_margin_bottom = int(img_height * 0.095)
+    qr_margin_right = int(img_width * 0.080)
+    qr_margin_bottom = int(img_height * 0.188)
     qr_x = img_width - qr_card_size - qr_margin_right
     qr_y = img_height - qr_card_size - qr_margin_bottom
 
