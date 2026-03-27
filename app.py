@@ -9,7 +9,7 @@ from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 
 from generator import generate_certificate, sanitize_name_for_file
-from github_upload import upload_certificate_to_github
+from github_upload import build_github_blob_url, upload_certificate_to_github
 
 # Configure logging
 logging.basicConfig(
@@ -81,7 +81,7 @@ def send_certificate_email(
     """Send certificate email with verification link and PDF attachment."""
     validate_mail_configuration()
     msg = Message(
-        subject="Your Certificate",
+        subject="Ascend Pitch 2026 - Certificate of Participation",
         recipients=[to_email],
         sender=app.config["MAIL_USERNAME"],
         body=(
@@ -239,9 +239,7 @@ def generate_route():
     local_certificate_url = url_for("view_certificate", cert_id=certificate_stem, _external=True)
 
     github_file_path = f"{github_folder.strip('/')}/{certificate_filename}".lstrip("/")
-    hosted_certificate_url = (
-        f"https://pyexpo2k26.github.io/AscendPitch_Certificate/generated-certificates/{certificate_filename}"
-    )
+    hosted_certificate_url = build_github_blob_url(github_repo, github_branch, github_file_path)
     upload_enabled = has_config_value(github_repo) and has_config_value(github_token)
     verification_link = hosted_certificate_url if upload_enabled else local_certificate_url
 

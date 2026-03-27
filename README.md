@@ -216,7 +216,7 @@ Run with console visible to diagnose issues.
 
 See `requirements.txt` for the complete list:
 - Flask 3.1.0 - Web framework
-- Pillow 11.1.0 - Image processing
+- Pillow 12.1.1 - Image processing
 - qrcode 8.0 - QR code generation
 - requests 2.32.3 - HTTP library for GitHub API
 - python-dotenv 1.0.1 - Environment variable loading

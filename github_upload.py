@@ -5,8 +5,8 @@ import requests
 
 
 def build_github_blob_url(repo, branch, file_path):
-    """Build a GitHub blob URL that opens in the browser instead of downloading directly."""
-    return f"https://github.com/{repo}/blob/{branch}/{file_path}"
+    """Build a GitHub blob URL that opens the file in GitHub's viewer."""
+    return f"https://github.com/{repo}/blob/{branch}/{file_path.lstrip('/')}"
 
 
 def upload_certificate_to_github(local_file_path, github_file_path, cleanup_local=True):
@@ -29,12 +29,13 @@ def upload_certificate_to_github(local_file_path, github_file_path, cleanup_loca
         print("[ERROR] GitHub upload failed: Missing GITHUB_TOKEN or GITHUB_REPO environment variables")
         return None
 
-    api_url = f"https://api.github.com/repos/{repo}/contents/{github_file_path}"
-    # Use 'token' format for Personal Access Token authentication (not 'Bearer')
+    normalized_file_path = github_file_path.lstrip("/")
+    api_url = f"https://api.github.com/repos/{repo}/contents/{normalized_file_path}"
     headers = {
-        "Authorization": f"token {token}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
     }
 
     try:
@@ -42,7 +43,7 @@ def upload_certificate_to_github(local_file_path, github_file_path, cleanup_loca
             content_encoded = base64.b64encode(file_handle.read()).decode("utf-8")
 
         payload = {
-            "message": f"Upload certificate {os.path.basename(github_file_path)}",
+            "message": f"Upload certificate {os.path.basename(normalized_file_path)}",
             "content": content_encoded,
             "branch": branch,
         }
@@ -74,7 +75,7 @@ def upload_certificate_to_github(local_file_path, github_file_path, cleanup_loca
                 except Exception as e:
                     print(f"[WARNING] Could not delete local certificate: {e}")
             
-            return build_github_blob_url(repo, branch, github_file_path)
+            return build_github_blob_url(repo, branch, normalized_file_path)
         else:
             print(f"[ERROR] GitHub API error: {response.status_code}")
             print(f"[ERROR] Response: {response.text}")
