@@ -1,5 +1,6 @@
 import os
 import logging
+import smtplib
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -29,7 +30,6 @@ UPLOADS_DIR = os.path.join(RUNTIME_DIR, "uploads")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATE_IMAGE = os.path.join(STATIC_DIR, "certificate_template.png")
 FONT_PATH = os.path.join(STATIC_DIR, "fonts", "DejaVuSans-Bold.ttf")
-MAIL_SENDER_ADDRESS = "pyexpo@kgkite.ac.in"
 
 EVENT_NAME = "Ascend Pitch"
 EVENT_DATE = "March 28, 2026"
@@ -37,19 +37,28 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-this-secret")
-mail_password = os.getenv("MAIL_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD")
-logger.info(f"Fixed mail sender configured: {MAIL_SENDER_ADDRESS}")
-logger.info(f"MAIL_PASSWORD loaded: {bool(mail_password)}")
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = MAIL_SENDER_ADDRESS
-app.config["MAIL_PASSWORD"] = mail_password
-app.config["MAIL_DEFAULT_SENDER"] = MAIL_SENDER_ADDRESS
+app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD") or os.getenv("GMAIL_APP_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_USERNAME")
+
+if app.config.get("MAIL_USERNAME"):
+    app.config["MAIL_USERNAME"] = app.config["MAIL_USERNAME"].strip()
+    app.config["MAIL_DEFAULT_SENDER"] = app.config["MAIL_USERNAME"]
+
+raw_mail_password = app.config.get("MAIL_PASSWORD") or ""
+app.config["MAIL_PASSWORD"] = raw_mail_password.replace(" ", "")
+if raw_mail_password and raw_mail_password != app.config["MAIL_PASSWORD"]:
+    logger.warning("MAIL_PASSWORD contained spaces; spaces were removed before SMTP login")
+logger.info(f"MAIL_PASSWORD loaded: {bool(app.config.get('MAIL_PASSWORD'))}")
 
 
 def validate_mail_configuration():
     missing = []
+    if not app.config.get("MAIL_USERNAME"):
+        missing.append("MAIL_USERNAME")
     if not app.config.get("MAIL_PASSWORD"):
         missing.append("MAIL_PASSWORD")
 
@@ -67,14 +76,14 @@ def send_certificate_email(
     name,
     verification_link,
     certificate_path,
-    attachment_filename,
+    filename,
 ):
     """Send certificate email with verification link and PDF attachment."""
     validate_mail_configuration()
     msg = Message(
-        subject="Ascend Pitch 2026 - Certificate of Participation",
+        subject="Your Certificate",
         recipients=[to_email],
-        sender=MAIL_SENDER_ADDRESS,
+        sender=app.config["MAIL_USERNAME"],
         body=(
             f"Dear {name},\n\n"
             "Thank you for participating in the AscendPitch held at KGiSL Institute of Technology on 28.03.2026.\n"
@@ -87,11 +96,22 @@ def send_certificate_email(
             "PyExpo Crew"
         ),
     )
-    with open(certificate_path, "rb") as certificate_file:
+    with app.open_resource(certificate_path) as certificate_file:
         file_data = certificate_file.read()
 
-    msg.attach(attachment_filename, "application/pdf", file_data)
-    mail.send(msg)
+    msg.attach(filename, "application/pdf", file_data)
+    try:
+        mail.send(msg)
+    except smtplib.SMTPAuthenticationError as exc:
+        logger.error(
+            "SMTP authentication failed for %s. Verify Gmail app password, ensure no spaces, and confirm MAIL_USERNAME matches MAIL_DEFAULT_SENDER.",
+            app.config.get("MAIL_USERNAME"),
+            exc_info=True,
+        )
+        raise
+    except smtplib.SMTPException as exc:
+        logger.error("SMTP error while sending email to %s: %s", to_email, exc, exc_info=True)
+        raise
 
 
 def allowed_file(filename):
